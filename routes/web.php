@@ -27,6 +27,7 @@ Route::get('/dashboard/links/{shortUrl}/stats', [DashboardController::class, 'li
     ->where('shortUrl', '[A-Za-z0-9_-]+');
 
 Route::middleware('auth')->group(function () {
+    Route::post('/dashboard/links/{id}', [ShortUrlController::class, 'destroy'])->name('dashboard.links.destroy');
     Route::post('/dashboard/links', [ShortUrlController::class, 'store'])
         ->name('links.store');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -34,4 +35,4 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

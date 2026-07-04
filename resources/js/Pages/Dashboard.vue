@@ -9,15 +9,18 @@ const props = defineProps({
     totalClicks: Number,
 });
 
+const confirmDelete = ref(false);
+const deleteId = ref(null);
+
 const longUrl = ref('');
 
 const createShortLink = () => {
     if (!longUrl.value) return;
-    
-    router.post('/dashboard/links', { 
-        long_url: longUrl.value 
+
+    router.post('/dashboard/links', {
+        long_url: longUrl.value
     });
-    
+
     longUrl.value = '';
 };
 
@@ -35,9 +38,35 @@ const truncate = (str, maxLength) => {
     if (!str) return 'Нет ссылки';
     return str.length > maxLength ? str.substring(0, maxLength) + '…' : str;
 };
+
+const confirmRemove = (id) => {
+    deleteId.value = id;
+    confirmDelete.value = true;
+};
+
+const removeLink = () => {
+    if (!deleteId.value) return;
+
+    const idToDelete = deleteId.value;
+
+    router.post(`/dashboard/links/${idToDelete}`, {}, {
+        onSuccess: () => {
+            confirmDelete.value = false;
+            deleteId.value = null;
+
+            router.reload();
+        },
+        onError: (errors) => {
+            console.error(errors);
+            confirmDelete.value = false;
+            deleteId.value = null;
+        },
+    });
+};
 </script>
 
 <template>
+
     <Head title="Dashboard" />
 
     <AuthenticatedLayout>
@@ -58,18 +87,10 @@ const truncate = (str, maxLength) => {
         <div class="py-12">
             <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
                 <form @submit.prevent="createShortLink" class="flex flex-col sm:flex-row gap-2">
-                    <input 
-                        v-model="longUrl" 
-                        type="url" 
-                        required 
-                        placeholder="https://example.com/very-long-link" 
-                        class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-                    />
-                    <button 
-                        type="submit" 
-                        :disabled="!longUrl"
-                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                    >
+                    <input v-model="longUrl" type="url" required placeholder="https://example.com/very-long-link"
+                        class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" />
+                    <button type="submit" :disabled="!longUrl"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
                         Сократить ссылку
                     </button>
                 </form>
@@ -82,16 +103,20 @@ const truncate = (str, maxLength) => {
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Целевая ссылка
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Короткая ссылка
                                         </th>
-                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Кликов
                                         </th>
-                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Действия
                                         </th>
                                     </tr>
@@ -108,13 +133,19 @@ const truncate = (str, maxLength) => {
                                                 {{ getToken(link.token) }}
                                             </a>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                        <td
+                                            class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
                                             {{ link.clicks_count || 0 }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button @click="copyToken(link.token)" type="button"
-                                                class="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+                                                class="text-indigo-600 hover:text-indigo-900 text-sm font-medium mr-4">
                                                 Копировать
+                                            </button>
+                                            
+                                            <button @click="confirmRemove(link.id)" type="button"
+                                                class="text-red-600 hover:text-red-900 text-sm font-medium">
+                                                Удалить
                                             </button>
                                         </td>
                                     </tr>
@@ -130,6 +161,23 @@ const truncate = (str, maxLength) => {
                             <p class="text-gray-500">У вас пока нет созданных коротких ссылок.</p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="confirmDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div class="w-full max-w-md bg-white p-6 rounded-lg shadow-xl">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Вы уверены?</h3>
+                <p class="text-gray-600 mb-6">Эта короткая ссылка будет удалена навсегда. Восстановить её не получится.</p>
+                <div class="flex justify-end gap-3">
+                    <button
+                        @click="confirmDelete = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    >Отмена</button>
+                    <button
+                        @click="removeLink()"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                    >Удалить</button>
                 </div>
             </div>
         </div>

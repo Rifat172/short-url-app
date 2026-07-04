@@ -22,12 +22,20 @@ class ShortUrlController extends Controller
         $shortUrl = ShortUrl::create([
             'token' => $token,
             'long_url' => $request->long_url,
-            'user_id' => auth()->id(), 
+            'user_id' => auth()->id(),
         ]);
-        
+
         return redirect()->route('dashboard');
     }
+    public function destroy(Request $request, $id)
+    {
+        $link = ShortUrl::where('user_id', auth()->id())
+            ->findOrFail($id);
 
+        $link->delete();
+
+        return back()->with('message', 'Ссылка удалена');
+    }
     public function redirect($token)
     {
         $shortUrl = ShortUrl::where('token', $token)->firstOrFail();
